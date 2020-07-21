@@ -59,11 +59,11 @@ yno_ylab <- "Mean yield (t/ha)"
 
 # calculate means, sds and ses to add to plots
 ynosum <- yno %>% group_by(Imtrex, Experiment) %>% 
-  summarise(meanyield = mean(yield, na.rm=TRUE), sdyield = sd(yield, na.rm=TRUE), 
-            seyield = sd(yield, na.rm=TRUE)/sqrt(sum(n()))) %>%
+  summarise(meanyield = mean(yield, na.rm = TRUE), sdyield = sd(yield, na.rm = TRUE), 
+            seyield = sd(yield, na.rm=  TRUE)/sqrt(sum(n()))) %>%
   ggplot(ynosum, mapping = aes(x = Imtrex, y = meanyield, colour = Experiment, group = Experiment)) + 
   geom_point() + geom_line() + 
-  geom_errorbar(aes(ymin = meanyield - seyield, ymax = meanyield + seyield), width=0.1) + 
+  geom_errorbar(aes(ymin = meanyield - seyield, ymax = meanyield + seyield), width = 0.1) + 
   stb_theme + xlab(yno_xlab) + ylab(yno_ylab)
 
 yno$Imtrex
@@ -182,5 +182,69 @@ ggplot(sumsim, aes(y = mean, x = Isolate, group = Imtrex, colour = Imtrex)) + ge
   scale_x_discrete(labels = c("sen", "res", "317", "325", "330", 
                             "359", "413", "442", "459", "9")) + xlab("Isolate") + 
   ylab("Average disease (%)") + stb_theme + theme(legend.position="top")
+
+
+microec50 <- read.csv("/Users/marta/Desktop/Rscripts/Rthesis/Microtiter/microec50.csv",
+                      header = T, na.strings="*")
+
+# change to factors
+str(microec50)
+microec50$iso <- as.factor(microec50$iso)
+microec50$conc <- as.factor(microec50$conc)
+
+levels(microec50$fung2) <- c("azoxystrobin", "pyraclostrobin")
+colnames(microec50)[4] <- "QoI"
+
+# histogram before data transformation 
+ggplot(microec50, aes(x = ec50)) + 
+  geom_histogram(binwidth = 0.5, alpha = 0.6) + 
+  facet_wrap(~QoI, ncol = 1) + stb_theme + xlab("EC50") + ylab("Count")
+
+## histogram after data transformation
+microec50 %>% mutate(ec50, logec50 = log10(ec50)) %>%
+ggplot(aes(x = logec50)) +
+  geom_histogram(binwidth = 0.5, alpha = 0.6) +
+  facet_wrap(~QoI, ncol = 1) + stb_theme + xlab("EC50") + ylab("Count")
+
+# boxplots for each concentration
+microec50 %>% mutate(ec50, logec50 = log10(ec50)) %>%
+ggplot(aes(x = conc, y = logec50)) + 
+  geom_boxplot(outlier.size = 1.5, outlier.shape = 1) + 
+  facet_wrap(~med) + stb_theme + xlab("Concentration") + ylab("LogEC50")
+
+
+microec50 %>% mutate(ec50, logec50 = log10(ec50)) %>% group_by(conc, QoI) %>% 
+  summarise(mean = mean(logec50, na.rm = TRUE), 
+            sd = sd(logec50, na.rm = TRUE), 
+            se = sd(logec50, na.rm = TRUE)/sqrt(n())) %>%
+ggplot(aes(x = conc, y = mean, group = QoI, colour = QoI)) + 
+  geom_point() + geom_line() + geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width=0.1) + 
+  xlab("Concentration of QoI") + ylab("Mean log10 of EC50 of fluxapyroxad") + 
+  stb_theme + theme(legend.position = c(0.85, 0.9), 
+                    legend.background = element_rect(color = "black"))
+
+
+# remove sensitive strain
+microec50 %>% filter(iso != "101") %>% group_by(conc, QoI) %>% mutate(ec50, logec50 = log10(ec50)) %>% 
+  group_by(conc, QoI) %>% summarise(mean = mean(logec50, na.rm = TRUE), sd = sd(logec50, na.rm = TRUE), se = sd(logec50, na.rm = TRUE)/sqrt(n())) %>%
+ggplot(aes(x = conc, y = mean, group = QoI, colour = QoI)) + 
+  geom_point() + geom_line() + geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.1) + 
+  xlab("Concentration of QoI") + ylab("Mean log10 of EC50 of fluxapyroxad") + stb_theme +
+  theme(legend.position = c(0.35, 0.3), 
+        legend.background = element_rect(color = "black"))
+
+# interaction plot
+microec50 %>% group_by(QoI, iso) %>% 
+  summarise(meanec50 = mean(ec50, na.rm = TRUE), sd = sd(ec50, na.rm = TRUE), 
+            se = sd(ec50, na.rm = TRUE)/sqrt(sum(n()))) %>%
+ggplot(aes(x = QoI, y = meanec50, group = iso, colour = iso)) + 
+  geom_point() + geom_line() + 
+  geom_errorbar(aes(ymin = meanec50 - se, ymax = meanec50 + se), width=0.1) + 
+  xlab("QoI") + ylab("mean EC50 of fluxapyroxad") + 
+  scale_y_continuous(breaks = c(0,1,2,3,4,5,6)) + 
+  stb_theme + theme(legend.position = "top")
+
+
+
 
 
